@@ -1,9 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Serilog.Events;
 using SchoolAdmission.Api;
 using SchoolAdmission.Api.ExceptionHandling;
+using SchoolAdmission.Api.Logging;
 using SchoolAdmission.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console());
 
 var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? builder.Configuration["DATABASE_URL"]
@@ -25,6 +34,25 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0} ms (student {StudentId})";
+
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        var studentId = httpContext.Request.Headers["X-Student-Id"].FirstOrDefault();
+        diagnosticContext.Set("StudentId", StudentIdMasker.Mask(studentId));
+    };
+
+    options.GetLevel = (httpContext, _, exception) =>
+        exception is not null || httpContext.Response.StatusCode >= 500
+            ? LogEventLevel.Error
+            : httpContext.Response.StatusCode >= 400
+                ? LogEventLevel.Warning
+                : LogEventLevel.Information;
+});
 
 app.UseExceptionHandler();
 app.UseCors();
