@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SchoolAdmission.Api;
+using SchoolAdmission.Api.ExceptionHandling;
 using SchoolAdmission.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,8 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
         "Set ConnectionStrings__Default or DATABASE_URL for the PostgreSQL connection.");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 var corsOrigins = CorsOrigins.Parse(builder.Configuration["CORS_ORIGINS"]);
 builder.Services.AddCors(options =>
@@ -23,6 +26,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseCors();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
