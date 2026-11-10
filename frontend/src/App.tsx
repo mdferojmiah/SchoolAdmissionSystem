@@ -4,6 +4,7 @@ import { StudentIdBar } from "./components/StudentIdBar";
 import { ErrorBannerProvider } from "./context/ErrorBannerContext";
 import { RoleProvider, useRole } from "./context/RoleContext";
 import { StudentProvider } from "./context/StudentContext";
+import { ClassesPage } from "./pages/ClassesPage";
 
 export default function App() {
   return (
@@ -33,19 +34,7 @@ function AppShell() {
       <main>
         {role === "admin" && !isAdmin && <AdminSignIn />}
 
-        {role === "admin" && isAdmin && (
-          <section className="panel" aria-label="Admin">
-            <h2>Admin</h2>
-            <p>Create a class and see live seat counts here.</p>
-          </section>
-        )}
-
-        {isGuardian && (
-          <section className="panel" aria-label="Guardian">
-            <h2>Guardian</h2>
-            <p>Browse classes and your applications will appear here.</p>
-          </section>
-        )}
+        {(isGuardian || isAdmin) && <ClassesPage />}
       </main>
     </div>
   );
