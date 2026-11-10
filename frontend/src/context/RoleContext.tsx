@@ -8,6 +8,7 @@ export interface RoleContextValue {
   role: Role;
   isAdmin: boolean;
   adminSignedIn: boolean;
+  storageWarning: boolean;
   selectGuardian(): void;
   selectAdmin(): void;
   signIn(email: string, password: string): boolean;
@@ -26,19 +27,21 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [adminSignedIn, setAdminSignedIn] = useState(
     () => readStorage(STORAGE_KEYS.adminSignedIn) === "true",
   );
+  const [storageWarning, setStorageWarning] = useState(false);
 
   const value = useMemo<RoleContextValue>(
     () => ({
       role,
       adminSignedIn,
+      storageWarning,
       isAdmin: role === "admin" && adminSignedIn,
       selectGuardian() {
         setRole("guardian");
-        writeStorage(STORAGE_KEYS.role, "guardian");
+        setStorageWarning(!writeStorage(STORAGE_KEYS.role, "guardian"));
       },
       selectAdmin() {
         setRole("admin");
-        writeStorage(STORAGE_KEYS.role, "admin");
+        setStorageWarning(!writeStorage(STORAGE_KEYS.role, "admin"));
       },
       signIn(email: string, password: string): boolean {
         const candidateEmail = email.trim();
@@ -57,17 +60,23 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         }
 
         setAdminSignedIn(true);
-        writeStorage(STORAGE_KEYS.adminSignedIn, "true");
+        setStorageWarning(
+          !writeStorage(STORAGE_KEYS.adminSignedIn, "true"),
+        );
         return true;
       },
       signOut() {
         setAdminSignedIn(false);
-        writeStorage(STORAGE_KEYS.adminSignedIn, "false");
         setRole("guardian");
-        writeStorage(STORAGE_KEYS.role, "guardian");
+        setStorageWarning(
+          !(
+            writeStorage(STORAGE_KEYS.adminSignedIn, "false") &&
+            writeStorage(STORAGE_KEYS.role, "guardian")
+          ),
+        );
       },
     }),
-    [role, adminSignedIn],
+    [role, adminSignedIn, storageWarning],
   );
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;

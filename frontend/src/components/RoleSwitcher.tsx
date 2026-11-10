@@ -1,8 +1,14 @@
 import { useRole } from "../context/RoleContext";
 
 export function RoleSwitcher() {
-  const { role, adminSignedIn, selectGuardian, selectAdmin, signOut } =
-    useRole();
+  const {
+    role,
+    adminSignedIn,
+    storageWarning,
+    selectGuardian,
+    selectAdmin,
+    signOut,
+  } = useRole();
 
   return (
     <nav className="role-switcher" aria-label="Role">
@@ -24,6 +30,12 @@ export function RoleSwitcher() {
         <button type="button" className="sign-out" onClick={signOut}>
           Sign out
         </button>
+      )}
+      {storageWarning && (
+        <p className="field-error" role="status">
+          Role changes will last for this session only. This browser is
+          blocking storage.
+        </p>
       )}
     </nav>
   );
