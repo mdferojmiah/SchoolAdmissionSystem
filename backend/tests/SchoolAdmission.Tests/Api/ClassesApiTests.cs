@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -80,6 +81,70 @@ public sealed class ClassesApiTests : IAsyncLifetime
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task CreateClass_MalformedJson_Returns400ProblemDetails()
+    {
+        using var content = new StringContent("{", Encoding.UTF8, "application/json");
+        using var response = await _client.PostAsync("/classes", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(
+            document.RootElement.GetProperty("message").GetString()));
+        Assert.False(document.RootElement.TryGetProperty("stackTrace", out _));
+    }
+
+    [Fact]
+    public async Task CreateClass_WrongSeatedType_Returns400ProblemDetails()
+    {
+        using var content = new StringContent(
+            "{\"name\":\"Class 12\",\"totalSeats\":\"abc\"}",
+            Encoding.UTF8,
+            "application/json");
+        using var response = await _client.PostAsync("/classes", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(
+            document.RootElement.GetProperty("message").GetString()));
+    }
+
+    [Fact]
+    public async Task CreateClass_EmptyBody_Returns400ProblemDetails()
+    {
+        using var content = new StringContent("", Encoding.UTF8, "application/json");
+        using var response = await _client.PostAsync("/classes", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(
+            document.RootElement.GetProperty("message").GetString()));
+    }
+
+    [Fact]
+    public async Task CreateClass_NameWithNullCharacter_Returns400ProblemDetails()
+    {
+        using var response = await _client.PostAsJsonAsync("/classes", new
+        {
+            name = "Class\0Name",
+            totalSeats = 10
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
     }
 
     [Fact]
@@ -188,6 +253,8 @@ public sealed class ClassesApiTests : IAsyncLifetime
 
         await ExpireHoldsAsync(id);
 
+        Assert.Equal("HELD", await GetSingleHoldStatusAsync(id));
+
         using var after = await GetClassAsync(id);
         Assert.Equal(0, after.RootElement.GetProperty("heldSeats").GetInt32());
         Assert.Equal(2, after.RootElement.GetProperty("availableSeats").GetInt32());
@@ -252,6 +319,19 @@ public sealed class ClassesApiTests : IAsyncLifetime
         command.Parameters.AddWithValue("class_id", classId);
 
         await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<string> GetSingleHoldStatusAsync(string classId)
+    {
+        await using var connection = new NpgsqlConnection(_fixture.ConnectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "select status from holds where class_id = @class_id",
+            connection);
+        command.Parameters.AddWithValue("class_id", classId);
+
+        return (string)(await command.ExecuteScalarAsync())!;
     }
 
     private static string NewStudentId() =>

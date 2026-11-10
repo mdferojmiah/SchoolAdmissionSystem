@@ -40,6 +40,18 @@ public sealed class ClassValidatorTests
         Assert.Equal("VALIDATION_ERROR", exception.Code);
     }
 
+    [Theory]
+    [InlineData("Class\0Name")]
+    [InlineData("Class\u0001Name")]
+    public void Validate_RejectsControlCharacters(string name)
+    {
+        var exception = Assert.Throws<AppException>(
+            () => ClassValidator.Validate(name, 10));
+
+        Assert.Equal(400, exception.StatusCode);
+        Assert.Equal("VALIDATION_ERROR", exception.Code);
+    }
+
     [Fact]
     public void Validate_TrimsNameAndReturnsNormalizedValues()
     {

@@ -20,6 +20,14 @@ public static class ClassValidator
                 "Class name is required.");
         }
 
+        if (trimmedName.Any(char.IsControl))
+        {
+            throw new AppException(
+                400,
+                "VALIDATION_ERROR",
+                "Class name must not contain control characters.");
+        }
+
         if (trimmedName.Length > MaxNameLength)
         {
             throw new AppException(
