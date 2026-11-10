@@ -38,4 +38,16 @@ public sealed class HoldsController(HoldService holdService) : ControllerBase
             confirmation.HoldId,
             confirmation.Status));
     }
+
+    [HttpDelete("{holdId}")]
+    public async Task<IActionResult> Cancel(
+        string holdId,
+        [FromHeader(Name = "X-Student-Id")] string? studentId,
+        CancellationToken cancellationToken)
+    {
+        var validatedStudentId = StudentIdValidator.Validate(studentId);
+        await holdService.CancelAsync(holdId, validatedStudentId, cancellationToken);
+
+        return NoContent();
+    }
 }

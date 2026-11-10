@@ -256,6 +256,140 @@ public sealed class HoldLifecycleApiTests : IAsyncLifetime
         Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task Cancel_WhenHeld_Returns204AndFreesSeatImmediately()
+    {
+        var classId = await CreateClassAsync("Class 6 - Cancel", 1);
+        var studentId = NewStudentId();
+        var holdId = await ApplyAndGetHoldIdAsync(classId, studentId);
+
+        using var response = await CancelAsync(holdId, studentId);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(0, classDocument.RootElement.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(0, classDocument.RootElement.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(1, classDocument.RootElement.GetProperty("availableSeats").GetInt32());
+
+        using var holdDocument = await GetHoldAsync(holdId);
+        Assert.Equal("CANCELLED", holdDocument.RootElement.GetProperty("status").GetString());
+
+        var row = await ReadHoldRowAsync(holdId);
+        Assert.Equal("CANCELLED", row.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_NotOwner_Returns403()
+    {
+        var classId = await CreateClassAsync("Class 6 - Cancel Owner", 5);
+        var ownerId = NewStudentId();
+        var holdId = await ApplyAndGetHoldIdAsync(classId, ownerId);
+
+        using var response = await CancelAsync(holdId, NewStudentId());
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("NOT_HOLD_OWNER", document.RootElement.GetProperty("code").GetString());
+
+        var row = await ReadHoldRowAsync(holdId);
+        Assert.Equal("HELD", row.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_UnknownHold_Returns404()
+    {
+        using var response = await CancelAsync(
+            $"h_missing_{Guid.NewGuid():N}",
+            NewStudentId());
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("HOLD_NOT_FOUND", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Cancel_ConfirmedHold_Returns409()
+    {
+        var classId = await CreateClassAsync("Class 6 - Cancel Confirmed", 5);
+        var studentId = NewStudentId();
+        var holdId = await ApplyAndGetHoldIdAsync(classId, studentId);
+
+        using (var confirm = await ConfirmAsync(holdId, studentId))
+        {
+            Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+        }
+
+        using var response = await CancelAsync(holdId, studentId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("HOLD_NOT_CANCELLABLE", document.RootElement.GetProperty("code").GetString());
+
+        var row = await ReadHoldRowAsync(holdId);
+        Assert.Equal("CONFIRMED", row.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_ExpiredHold_Returns409()
+    {
+        var classId = await CreateClassAsync("Class 6 - Cancel Expired", 5);
+        var studentId = NewStudentId();
+        var holdId = await InsertHoldAsync(
+            classId,
+            studentId,
+            "HELD",
+            DateTimeOffset.UtcNow.AddMinutes(-10));
+
+        using var response = await CancelAsync(holdId, studentId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("HOLD_EXPIRED", document.RootElement.GetProperty("code").GetString());
+
+        var row = await ReadHoldRowAsync(holdId);
+        Assert.Equal("HELD", row.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_AlreadyCancelledHold_Returns409()
+    {
+        var classId = await CreateClassAsync("Class 6 - Cancel Cancelled", 5);
+        var studentId = NewStudentId();
+        var holdId = await InsertHoldAsync(
+            classId,
+            studentId,
+            "CANCELLED",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        using var response = await CancelAsync(holdId, studentId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("HOLD_CANCELLED", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("123")]
+    public async Task Cancel_InvalidStudentId_Returns400(string? studentId)
+    {
+        var classId = await CreateClassAsync("Class 6 - Cancel Invalid Id", 5);
+        var holdId = await ApplyAndGetHoldIdAsync(classId, NewStudentId());
+
+        using var response = await CancelAsync(holdId, studentId);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
@@ -282,6 +416,20 @@ public sealed class HoldLifecycleApiTests : IAsyncLifetime
 
             await command.ExecuteNonQueryAsync();
         }
+    }
+
+    private async Task<HttpResponseMessage> CancelAsync(string holdId, string? studentId)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"/holds/{holdId}");
+
+        if (studentId is not null)
+        {
+            request.Headers.Add("X-Student-Id", studentId);
+        }
+
+        return await _client.SendAsync(request);
     }
 
     private async Task<HttpResponseMessage> ConfirmAsync(string holdId, string? studentId)
