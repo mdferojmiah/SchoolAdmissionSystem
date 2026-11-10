@@ -39,6 +39,7 @@ public sealed class ProgramConfigurationTests
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                builder.UseSetting("Database:MigrateOnStartup", "false");
                 builder.UseSetting(key, "Host=localhost;Database=test;Username=test;Password=test");
             });
         using var client = factory.CreateClient();

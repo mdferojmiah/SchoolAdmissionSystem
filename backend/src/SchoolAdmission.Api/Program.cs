@@ -4,6 +4,7 @@ using Serilog.Events;
 using SchoolAdmission.Api;
 using SchoolAdmission.Api.ExceptionHandling;
 using SchoolAdmission.Api.Logging;
+using SchoolAdmission.Api.Startup;
 using SchoolAdmission.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +36,11 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
+{
+    await DatabaseMigrator.ApplyMigrationsAsync(app.Services);
+}
 
 app.UseSerilogRequestLogging(options =>
 {

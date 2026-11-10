@@ -27,5 +27,5 @@ public sealed class PostgresSchemaFixture : IAsyncLifetime
     public Task DisposeAsync() => Task.CompletedTask;
 }
 
-[CollectionDefinition("PostgresSchema")]
+[CollectionDefinition("PostgresSchema", DisableParallelization = true)]
 public sealed class PostgresSchemaCollection : ICollectionFixture<PostgresSchemaFixture>;

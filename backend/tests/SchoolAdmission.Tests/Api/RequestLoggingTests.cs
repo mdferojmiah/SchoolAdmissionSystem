@@ -22,6 +22,7 @@ public sealed class RequestLoggingTests
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                builder.UseSetting("Database:MigrateOnStartup", "false");
                 builder.UseSetting(
                     "ConnectionStrings:Default",
                     "Host=localhost;Database=test;Username=test;Password=test");

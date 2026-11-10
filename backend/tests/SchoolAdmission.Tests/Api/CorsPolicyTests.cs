@@ -13,6 +13,7 @@ public sealed class CorsPolicyTests : IClassFixture<WebApplicationFactory<Progra
         _factory = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("CORS_ORIGINS", "http://localhost:3000");
+            builder.UseSetting("Database:MigrateOnStartup", "false");
             builder.UseSetting("ConnectionStrings:Default", "Host=localhost;Database=test;Username=test;Password=test");
         });
     }

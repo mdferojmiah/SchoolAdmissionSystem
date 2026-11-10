@@ -13,6 +13,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            builder.UseSetting("Database:MigrateOnStartup", "false");
             builder.UseSetting("ConnectionStrings:Default", "Host=localhost;Database=test;Username=test;Password=test");
         });
     }
