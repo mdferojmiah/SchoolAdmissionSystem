@@ -21,4 +21,21 @@ public sealed class HoldsController(HoldService holdService) : ControllerBase
             hold.Status,
             hold.ExpiresAt));
     }
+
+    [HttpPost("{holdId}/confirm")]
+    public async Task<ActionResult<ConfirmHoldResponse>> Confirm(
+        string holdId,
+        [FromHeader(Name = "X-Student-Id")] string? studentId,
+        CancellationToken cancellationToken)
+    {
+        var validatedStudentId = StudentIdValidator.Validate(studentId);
+        var confirmation = await holdService.ConfirmAsync(
+            holdId,
+            validatedStudentId,
+            cancellationToken);
+
+        return Ok(new ConfirmHoldResponse(
+            confirmation.HoldId,
+            confirmation.Status));
+    }
 }

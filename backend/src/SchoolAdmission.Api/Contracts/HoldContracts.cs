@@ -12,3 +12,7 @@ public sealed record HoldStatusResponse(
     string ClassId,
     string Status,
     DateTimeOffset ExpiresAt);
+
+public sealed record ConfirmHoldResponse(
+    string HoldId,
+    string Status);

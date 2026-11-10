@@ -15,4 +15,7 @@ public interface IAppDbContext
     Task<SchoolClass?> LockClassForUpdateAsync(
         string classId,
         CancellationToken cancellationToken);
+    Task<Hold?> LockHoldForUpdateAsync(
+        string holdId,
+        CancellationToken cancellationToken);
 }

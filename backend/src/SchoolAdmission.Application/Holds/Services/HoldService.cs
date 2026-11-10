@@ -87,6 +87,61 @@ public sealed class HoldService(IAppDbContext db, HoldSettings settings)
             hold.ExpiresAt);
     }
 
+    public async Task<HoldConfirmation> ConfirmAsync(
+        string holdId,
+        string studentId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.BeginTransactionAsync(cancellationToken);
+
+        var hold = await db.LockHoldForUpdateAsync(holdId, cancellationToken);
+
+        if (hold is null)
+        {
+            throw new AppException(404, "HOLD_NOT_FOUND", "Hold not found.");
+        }
+
+        if (hold.StudentId != studentId)
+        {
+            throw new AppException(
+                403,
+                "NOT_HOLD_OWNER",
+                "This application belongs to a different student.");
+        }
+
+        if (hold.Status == HoldStatus.Confirmed)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new HoldConfirmation(hold.Id, "CONFIRMED");
+        }
+
+        if (hold.Status == HoldStatus.Cancelled)
+        {
+            throw new AppException(
+                409,
+                "HOLD_CANCELLED",
+                "This application was cancelled.");
+        }
+
+        var now = await db.GetDatabaseUtcNowAsync(cancellationToken);
+
+        if (hold.Status == HoldStatus.Expired || hold.ExpiresAt <= now)
+        {
+            throw new AppException(
+                409,
+                "HOLD_EXPIRED",
+                "Your hold has expired. Please apply again.");
+        }
+
+        hold.Status = HoldStatus.Confirmed;
+        hold.ConfirmedAt = now;
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new HoldConfirmation(hold.Id, "CONFIRMED");
+    }
+
     public async Task<HoldDetails> GetAsync(
         string holdId,
         CancellationToken cancellationToken)

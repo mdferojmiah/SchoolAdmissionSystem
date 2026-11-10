@@ -80,6 +80,182 @@ public sealed class HoldLifecycleApiTests : IAsyncLifetime
         Assert.Equal("HELD", row.Status);
     }
 
+    [Fact]
+    public async Task Confirm_WhenHeldAndUnexpired_Returns200AndRaisesConfirmedSeatsOnce()
+    {
+        var classId = await CreateClassAsync("Class 6 - Confirm", 5);
+        var studentId = NewStudentId();
+        var holdId = await ApplyAndGetHoldIdAsync(classId, studentId);
+
+        using (var first = await ConfirmAsync(holdId, studentId))
+        {
+            Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+            using var document = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
+            Assert.Equal(holdId, document.RootElement.GetProperty("holdId").GetString());
+            Assert.Equal("CONFIRMED", document.RootElement.GetProperty("status").GetString());
+        }
+
+        using (var second = await ConfirmAsync(holdId, studentId))
+        {
+            Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+
+            using var document = JsonDocument.Parse(await second.Content.ReadAsStringAsync());
+            Assert.Equal("CONFIRMED", document.RootElement.GetProperty("status").GetString());
+        }
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(0, classDocument.RootElement.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(1, classDocument.RootElement.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(4, classDocument.RootElement.GetProperty("availableSeats").GetInt32());
+
+        var row = await ReadHoldRowAsync(holdId);
+        Assert.Equal("CONFIRMED", row.Status);
+        Assert.True(row.ConfirmedAtIsSet);
+    }
+
+    [Fact]
+    public async Task Confirm_ParallelRequestsRaiseConfirmedSeatsOnce()
+    {
+        const int attempts = 10;
+        var classId = await CreateClassAsync("Class 6 - Confirm Race", 5);
+        var studentId = NewStudentId();
+        var holdId = await ApplyAndGetHoldIdAsync(classId, studentId);
+
+        var responses = await Task.WhenAll(
+            Enumerable.Range(0, attempts)
+                .Select(_ => ConfirmAsync(holdId, studentId)));
+
+        try
+        {
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+        }
+        finally
+        {
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
+        }
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(1, classDocument.RootElement.GetProperty("confirmedSeats").GetInt32());
+
+        var row = await ReadHoldRowAsync(holdId);
+        Assert.Equal("CONFIRMED", row.Status);
+    }
+
+    [Fact]
+    public async Task Confirm_NotOwner_Returns403()
+    {
+        var classId = await CreateClassAsync("Class 6 - Confirm Owner", 5);
+        var ownerId = NewStudentId();
+        var holdId = await ApplyAndGetHoldIdAsync(classId, ownerId);
+
+        using var response = await ConfirmAsync(holdId, NewStudentId());
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("NOT_HOLD_OWNER", document.RootElement.GetProperty("code").GetString());
+
+        var row = await ReadHoldRowAsync(holdId);
+        Assert.Equal("HELD", row.Status);
+    }
+
+    [Fact]
+    public async Task Confirm_NotOwnerOfConfirmedHold_Returns403()
+    {
+        var classId = await CreateClassAsync("Class 6 - Confirm Confirmed Owner", 5);
+        var ownerId = NewStudentId();
+        var holdId = await InsertHoldAsync(
+            classId,
+            ownerId,
+            "CONFIRMED",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        using var response = await ConfirmAsync(holdId, NewStudentId());
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("NOT_HOLD_OWNER", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Confirm_UnknownHold_Returns404()
+    {
+        using var response = await ConfirmAsync(
+            $"h_missing_{Guid.NewGuid():N}",
+            NewStudentId());
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("HOLD_NOT_FOUND", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Confirm_ExpiredHold_Returns409AndDoesNotConfirm()
+    {
+        var classId = await CreateClassAsync("Class 6 - Confirm Expired", 5);
+        var studentId = NewStudentId();
+        var holdId = await InsertHoldAsync(
+            classId,
+            studentId,
+            "HELD",
+            DateTimeOffset.UtcNow.AddMinutes(-10));
+
+        using var response = await ConfirmAsync(holdId, studentId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("HOLD_EXPIRED", document.RootElement.GetProperty("code").GetString());
+
+        var row = await ReadHoldRowAsync(holdId);
+        Assert.Equal("HELD", row.Status);
+        Assert.False(row.ConfirmedAtIsSet);
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(0, classDocument.RootElement.GetProperty("confirmedSeats").GetInt32());
+    }
+
+    [Fact]
+    public async Task Confirm_CancelledHold_Returns409()
+    {
+        var classId = await CreateClassAsync("Class 6 - Confirm Cancelled", 5);
+        var studentId = NewStudentId();
+        var holdId = await InsertHoldAsync(
+            classId,
+            studentId,
+            "CANCELLED",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        using var response = await ConfirmAsync(holdId, studentId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("HOLD_CANCELLED", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("123")]
+    public async Task Confirm_InvalidStudentId_Returns400(string? studentId)
+    {
+        var classId = await CreateClassAsync("Class 6 - Confirm Invalid Id", 5);
+        var holdId = await ApplyAndGetHoldIdAsync(classId, NewStudentId());
+
+        using var response = await ConfirmAsync(holdId, studentId);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
@@ -106,6 +282,20 @@ public sealed class HoldLifecycleApiTests : IAsyncLifetime
 
             await command.ExecuteNonQueryAsync();
         }
+    }
+
+    private async Task<HttpResponseMessage> ConfirmAsync(string holdId, string? studentId)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/holds/{holdId}/confirm");
+
+        if (studentId is not null)
+        {
+            request.Headers.Add("X-Student-Id", studentId);
+        }
+
+        return await _client.SendAsync(request);
     }
 
     private async Task<string> CreateClassAsync(string name, int totalSeats)

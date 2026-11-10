@@ -36,6 +36,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         return classes.SingleOrDefault();
     }
 
+    public async Task<Hold?> LockHoldForUpdateAsync(
+        string holdId,
+        CancellationToken cancellationToken)
+    {
+        var holds = await Holds
+            .FromSqlRaw("SELECT * FROM holds WHERE id = {0} FOR UPDATE", holdId)
+            .ToListAsync(cancellationToken);
+
+        return holds.SingleOrDefault();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
