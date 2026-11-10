@@ -492,3 +492,6 @@ $RECYCLE.BIN/
 
 # Local-only backend tests (not committed)
 backend/tests/
+
+# Frontend build output
+frontend/dist/
