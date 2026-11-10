@@ -19,15 +19,31 @@ The hold duration is `HOLD_DURATION_SECONDS` (default `600`).
 - Email: `admin@school.test`
 - Password: `Adm1n!Demo`
 
-## Backend tests (local working copy only)
+## Backend Automated Tests
 
-The `backend/tests/` project is intentionally not committed. In a working copy that contains it, run:
+All automated tests run against the PostgreSQL 16 database container via Docker Compose. No local .NET SDK or Testcontainers configuration is required.
+
+Run the entire automated test suite:
 
 ```bash
 docker compose run --rm backend-tests
 ```
 
-A fresh clone does not include tests; `docker compose up` still runs the application.
+To run specifically the 5 core specification integration tests (`AdmissionSystemIntegrationTests`):
+
+```bash
+docker compose run --rm backend-tests --filter FullyQualifiedName~AdmissionSystemIntegrationTests
+```
+
+### Specification Test Coverage (Rules R1 – R5)
+
+The integration test suite (`SchoolAdmission.Tests/Api/AdmissionSystemIntegrationTests.cs`) covers the mandatory specification criteria:
+
+1. **Concurrency (`SpecTest1_Concurrency_ManyParallelApplies_NeverExceedTotalSeats`):** 25 concurrent requests compete for 5 seats; exactly 5 succeed (201 Created), 20 receive 409 Conflict with code `NO_SEATS`, and held + confirmed seats never exceed 5 (**Rule R1**).
+2. **Duplicate Application (`SpecTest2_DuplicateApply_SameStudentApplyingTwice_IsRejectedWithConflict`):** Applying twice to the same class while active or confirmed returns 409 Conflict with code `DUPLICATE_APPLICATION` (**Rule R3**).
+3. **Confirm Idempotence (`SpecTest3_ConfirmTwice_RaisesConfirmedSeatsOnlyOnce`):** Calling confirm repeatedly or concurrently returns 200 OK and increments `confirmedSeats` only once (**Rule R5**).
+4. **Hold Expiry (`SpecTest4_ExpiredHold_FreesSeatAndCannotBeConfirmed`):** Expired holds immediately free their seat without background jobs, and confirm requests on expired holds return 409 `HOLD_EXPIRED` (**Rules R2, R4**).
+5. **Ownership (`SpecTest5_Ownership_StudentCannotConfirmOrCancelAnotherStudentsHold`):** Non-owners attempting to confirm or cancel receive 403 Forbidden with code `NOT_HOLD_OWNER` (**Rule R4**).
 
 ## Persistence (R6)
 
