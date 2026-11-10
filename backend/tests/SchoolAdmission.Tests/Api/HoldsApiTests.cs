@@ -126,12 +126,16 @@ public sealed class HoldsApiTests : IAsyncLifetime
             "CONFIRMED",
             DateTimeOffset.UtcNow.AddMinutes(10));
 
-        using var response = await ApplyAsync(classId, NewStudentId());
+        var rejectedStudentId = NewStudentId();
+        using var response = await ApplyAsync(classId, rejectedStudentId);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
 
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("NO_SEATS", document.RootElement.GetProperty("code").GetString());
+
+        var rejectedStatuses = await CountHoldsByStatusAsync(classId, rejectedStudentId);
+        Assert.Empty(rejectedStatuses);
     }
 
     [Fact]
