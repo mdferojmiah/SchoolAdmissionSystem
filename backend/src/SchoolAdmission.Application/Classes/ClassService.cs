@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SchoolAdmission.Application.Persistence;
+using SchoolAdmission.Domain;
 using SchoolAdmission.Domain.Entities;
 
 namespace SchoolAdmission.Application.Classes;
@@ -34,19 +35,31 @@ public sealed class ClassService(IAppDbContext db)
     public async Task<IReadOnlyList<ClassSummary>> ListAsync(
         CancellationToken cancellationToken)
     {
-        var classes = await db.Classes
+        var now = await db.GetDatabaseUtcNowAsync(cancellationToken);
+
+        var rows = await db.Classes
             .AsNoTracking()
             .OrderBy(schoolClass => schoolClass.CreatedAt)
-            .ToListAsync(cancellationToken);
-
-        return classes
-            .Select(schoolClass => new ClassSummary(
+            .Select(schoolClass => new
+            {
                 schoolClass.Id,
                 schoolClass.Name,
                 schoolClass.TotalSeats,
-                0,
-                0,
-                schoolClass.TotalSeats))
+                HeldSeats = schoolClass.Holds.Count(hold =>
+                    hold.Status == HoldStatus.Held && hold.ExpiresAt > now),
+                ConfirmedSeats = schoolClass.Holds.Count(hold =>
+                    hold.Status == HoldStatus.Confirmed)
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new ClassSummary(
+                row.Id,
+                row.Name,
+                row.TotalSeats,
+                row.HeldSeats,
+                row.ConfirmedSeats,
+                row.TotalSeats - row.HeldSeats - row.ConfirmedSeats))
             .ToList();
     }
 
@@ -54,20 +67,31 @@ public sealed class ClassService(IAppDbContext db)
         string classId,
         CancellationToken cancellationToken)
     {
-        var schoolClass = await db.Classes
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                candidate => candidate.Id == classId,
-                cancellationToken);
+        var now = await db.GetDatabaseUtcNowAsync(cancellationToken);
 
-        return schoolClass is null
-            ? null
-            : new ClassSummary(
+        var row = await db.Classes
+            .AsNoTracking()
+            .Where(schoolClass => schoolClass.Id == classId)
+            .Select(schoolClass => new
+            {
                 schoolClass.Id,
                 schoolClass.Name,
                 schoolClass.TotalSeats,
-                0,
-                0,
-                schoolClass.TotalSeats);
+                HeldSeats = schoolClass.Holds.Count(hold =>
+                    hold.Status == HoldStatus.Held && hold.ExpiresAt > now),
+                ConfirmedSeats = schoolClass.Holds.Count(hold =>
+                    hold.Status == HoldStatus.Confirmed)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return row is null
+            ? null
+            : new ClassSummary(
+                row.Id,
+                row.Name,
+                row.TotalSeats,
+                row.HeldSeats,
+                row.ConfirmedSeats,
+                row.TotalSeats - row.HeldSeats - row.ConfirmedSeats);
     }
 }

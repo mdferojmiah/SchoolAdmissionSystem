@@ -10,6 +10,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<SchoolClass> Classes => Set<SchoolClass>();
     public DbSet<Hold> Holds => Set<Hold>();
 
+    public async Task<DateTimeOffset> GetDatabaseUtcNowAsync(
+        CancellationToken cancellationToken)
+    {
+        var now = await Database
+            .SqlQueryRaw<DateTime>("SELECT (now() AT TIME ZONE 'UTC') AS \"Value\"")
+            .SingleAsync(cancellationToken);
+
+        return new DateTimeOffset(DateTime.SpecifyKind(now, DateTimeKind.Utc));
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

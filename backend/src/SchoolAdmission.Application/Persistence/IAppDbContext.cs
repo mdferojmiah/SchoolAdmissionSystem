@@ -8,4 +8,5 @@ public interface IAppDbContext
     DbSet<SchoolClass> Classes { get; }
     DbSet<Hold> Holds { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task<DateTimeOffset> GetDatabaseUtcNowAsync(CancellationToken cancellationToken);
 }

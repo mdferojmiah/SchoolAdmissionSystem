@@ -97,6 +97,53 @@ public sealed class ClassesApiTests : IAsyncLifetime
         Assert.Equal(40, posted.GetProperty("availableSeats").GetInt32());
     }
 
+    [Fact]
+    public async Task GetClass_CountsOnlyUnexpiredHeldAndAllConfirmed()
+    {
+        var id = await CreateClassAsync("Class 9 - Counts", 10);
+
+        await InsertHoldAsync(id, "HELD", DateTimeOffset.UtcNow.AddMinutes(10));
+        await InsertHoldAsync(id, "HELD", DateTimeOffset.UtcNow.AddMinutes(-10));
+        await InsertHoldAsync(id, "CONFIRMED", DateTimeOffset.UtcNow.AddMinutes(10));
+        await InsertHoldAsync(id, "CONFIRMED", DateTimeOffset.UtcNow.AddMinutes(-10));
+        await InsertHoldAsync(id, "CANCELLED", DateTimeOffset.UtcNow.AddMinutes(10));
+        await InsertHoldAsync(id, "EXPIRED", DateTimeOffset.UtcNow.AddMinutes(-10));
+
+        using var detail = await GetClassAsync(id);
+        Assert.Equal(1, detail.RootElement.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(2, detail.RootElement.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(7, detail.RootElement.GetProperty("availableSeats").GetInt32());
+
+        using var listResponse = await _client.GetAsync("/classes");
+        using var list = JsonDocument.Parse(await listResponse.Content.ReadAsStringAsync());
+        var listed = list.RootElement
+            .EnumerateArray()
+            .Single(item => item.GetProperty("id").GetString() == id);
+
+        Assert.Equal(1, listed.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(2, listed.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(7, listed.GetProperty("availableSeats").GetInt32());
+    }
+
+    [Fact]
+    public async Task GetClass_ExpiredHoldFreesSeatWithoutApiCall()
+    {
+        var id = await CreateClassAsync("Class 9 - Expiry", 2);
+        await InsertHoldAsync(id, "HELD", DateTimeOffset.UtcNow.AddMinutes(10));
+
+        using (var before = await GetClassAsync(id))
+        {
+            Assert.Equal(1, before.RootElement.GetProperty("heldSeats").GetInt32());
+            Assert.Equal(1, before.RootElement.GetProperty("availableSeats").GetInt32());
+        }
+
+        await ExpireHoldsAsync(id);
+
+        using var after = await GetClassAsync(id);
+        Assert.Equal(0, after.RootElement.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(2, after.RootElement.GetProperty("availableSeats").GetInt32());
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
