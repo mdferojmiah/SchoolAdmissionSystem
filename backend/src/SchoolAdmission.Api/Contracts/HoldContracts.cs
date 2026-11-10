@@ -16,3 +16,10 @@ public sealed record HoldStatusResponse(
 public sealed record ConfirmHoldResponse(
     string HoldId,
     string Status);
+
+public sealed record MyHoldResponse(
+    string HoldId,
+    string ClassId,
+    string ClassName,
+    string Status,
+    DateTimeOffset ExpiresAt);

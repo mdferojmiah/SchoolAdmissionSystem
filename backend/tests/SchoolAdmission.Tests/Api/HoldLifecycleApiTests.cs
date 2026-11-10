@@ -390,6 +390,100 @@ public sealed class HoldLifecycleApiTests : IAsyncLifetime
         Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task MyHolds_ReturnsOnlyCurrentStudentApplicationsWithClassName()
+    {
+        var morningClassId = await CreateClassAsync("Class 6 - Mine Morning", 5);
+        var dayClassId = await CreateClassAsync("Class 6 - Mine Day", 5);
+        var studentId = NewStudentId();
+
+        var morningHoldId = await ApplyAndGetHoldIdAsync(morningClassId, studentId);
+        var dayHoldId = await ApplyAndGetHoldIdAsync(dayClassId, studentId);
+        await ApplyAndGetHoldIdAsync(morningClassId, NewStudentId());
+
+        using var response = await MyHoldsAsync(studentId);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var holds = document.RootElement.EnumerateArray().ToList();
+
+        Assert.Equal(2, holds.Count);
+        Assert.Contains(holds, hold =>
+            hold.GetProperty("holdId").GetString() == morningHoldId &&
+            hold.GetProperty("classId").GetString() == morningClassId &&
+            hold.GetProperty("className").GetString() == "Class 6 - Mine Morning" &&
+            hold.GetProperty("status").GetString() == "HELD");
+        Assert.Contains(holds, hold =>
+            hold.GetProperty("holdId").GetString() == dayHoldId &&
+            hold.GetProperty("classId").GetString() == dayClassId &&
+            hold.GetProperty("className").GetString() == "Class 6 - Mine Day");
+    }
+
+    [Fact]
+    public async Task MyHolds_ReportsExpiredAndPreservesOtherStatuses()
+    {
+        var studentId = NewStudentId();
+        var expiredClassId = await CreateClassAsync("Class 6 - Mine Expired", 5);
+        var confirmedClassId = await CreateClassAsync("Class 6 - Mine Confirmed", 5);
+        var cancelledClassId = await CreateClassAsync("Class 6 - Mine Cancelled", 5);
+
+        var expiredHoldId = await InsertHoldAsync(
+            expiredClassId,
+            studentId,
+            "HELD",
+            DateTimeOffset.UtcNow.AddMinutes(-10));
+        var confirmedHoldId = await InsertHoldAsync(
+            confirmedClassId,
+            studentId,
+            "CONFIRMED",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+        var cancelledHoldId = await InsertHoldAsync(
+            cancelledClassId,
+            studentId,
+            "CANCELLED",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        using var response = await MyHoldsAsync(studentId);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var statuses = document.RootElement.EnumerateArray().ToDictionary(
+            hold => hold.GetProperty("holdId").GetString()!,
+            hold => hold.GetProperty("status").GetString());
+
+        Assert.Equal("EXPIRED", statuses[expiredHoldId]);
+        Assert.Equal("CONFIRMED", statuses[confirmedHoldId]);
+        Assert.Equal("CANCELLED", statuses[cancelledHoldId]);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("123")]
+    [InlineData("123456789012345678")]
+    public async Task MyHolds_InvalidStudentId_Returns400(string? studentId)
+    {
+        using var response = await MyHoldsAsync(studentId);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task MyHolds_WhenStudentHasNoHolds_ReturnsEmptyArray()
+    {
+        using var response = await MyHoldsAsync(NewStudentId());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(JsonValueKind.Array, document.RootElement.ValueKind);
+        Assert.Empty(document.RootElement.EnumerateArray());
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
@@ -416,6 +510,18 @@ public sealed class HoldLifecycleApiTests : IAsyncLifetime
 
             await command.ExecuteNonQueryAsync();
         }
+    }
+
+    private async Task<HttpResponseMessage> MyHoldsAsync(string? studentId)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/me/holds");
+
+        if (studentId is not null)
+        {
+            request.Headers.Add("X-Student-Id", studentId);
+        }
+
+        return await _client.SendAsync(request);
     }
 
     private async Task<HttpResponseMessage> CancelAsync(string holdId, string? studentId)

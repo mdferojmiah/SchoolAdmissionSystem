@@ -218,6 +218,38 @@ public sealed class HoldService(IAppDbContext db, HoldSettings settings)
             hold.ExpiresAt);
     }
 
+    public async Task<IReadOnlyList<MyHoldSummary>> ListMineAsync(
+        string studentId,
+        CancellationToken cancellationToken)
+    {
+        var now = await db.GetDatabaseUtcNowAsync(cancellationToken);
+
+        var rows = await (
+                from hold in db.Holds.AsNoTracking()
+                join schoolClass in db.Classes.AsNoTracking()
+                    on hold.ClassId equals schoolClass.Id
+                where hold.StudentId == studentId
+                orderby hold.CreatedAt descending
+                select new
+                {
+                    hold.Id,
+                    hold.ClassId,
+                    ClassName = schoolClass.Name,
+                    hold.Status,
+                    hold.ExpiresAt
+                })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new MyHoldSummary(
+                row.Id,
+                row.ClassId,
+                row.ClassName,
+                ToApiStatus(row.Status, row.ExpiresAt, now),
+                row.ExpiresAt))
+            .ToList();
+    }
+
     private static string ToApiStatus(
         HoldStatus status,
         DateTimeOffset expiresAt,
