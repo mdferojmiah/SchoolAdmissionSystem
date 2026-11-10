@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using SchoolAdmission.Application.Persistence;
 using SchoolAdmission.Domain.Entities;
 
@@ -18,6 +19,21 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             .SingleAsync(cancellationToken);
 
         return new DateTimeOffset(DateTime.SpecifyKind(now, DateTimeKind.Utc));
+    }
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(
+        CancellationToken cancellationToken = default) =>
+        Database.BeginTransactionAsync(cancellationToken);
+
+    public async Task<SchoolClass?> LockClassForUpdateAsync(
+        string classId,
+        CancellationToken cancellationToken)
+    {
+        var classes = await Classes
+            .FromSqlRaw("SELECT * FROM classes WHERE id = {0} FOR UPDATE", classId)
+            .ToListAsync(cancellationToken);
+
+        return classes.SingleOrDefault();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

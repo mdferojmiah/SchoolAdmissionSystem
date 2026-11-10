@@ -2,12 +2,15 @@ using Microsoft.AspNetCore.Mvc;
 using SchoolAdmission.Api.Contracts;
 using SchoolAdmission.Application.Classes;
 using SchoolAdmission.Application.Exceptions;
+using SchoolAdmission.Application.Holds;
 
 namespace SchoolAdmission.Api.Controllers;
 
 [ApiController]
 [Route("classes")]
-public sealed class ClassesController(ClassService classService) : ControllerBase
+public sealed class ClassesController(
+    ClassService classService,
+    HoldService holdService) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<CreateClassResponse>> Create(
@@ -45,6 +48,28 @@ public sealed class ClassesController(ClassService classService) : ControllerBas
         }
 
         return Ok(ToResponse(schoolClass));
+    }
+
+    [HttpPost("{classId}/holds")]
+    public async Task<ActionResult<ApplyHoldResponse>> Apply(
+        string classId,
+        [FromHeader(Name = "X-Student-Id")] string? studentId,
+        CancellationToken cancellationToken)
+    {
+        var validatedStudentId = StudentIdValidator.Validate(studentId);
+        var hold = await holdService.ApplyAsync(
+            classId,
+            validatedStudentId,
+            cancellationToken);
+
+        return Created(
+            $"/holds/{hold.HoldId}",
+            new ApplyHoldResponse(
+                hold.HoldId,
+                hold.ClassId,
+                hold.StudentId,
+                hold.Status,
+                hold.ExpiresAt));
     }
 
     private static ClassResponse ToResponse(ClassSummary summary) =>
