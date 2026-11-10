@@ -153,6 +153,55 @@ public sealed class HoldsApiTests : IAsyncLifetime
         Assert.Equal(0, classDocument.RootElement.GetProperty("availableSeats").GetInt32());
     }
 
+    [Fact]
+    public async Task Apply_WhenStudentAlreadyHasActiveHold_Returns409Duplicate()
+    {
+        var classId = await CreateClassAsync("Class 6 - Duplicate", 5);
+        var studentId = NewStudentId();
+
+        using (var first = await ApplyAsync(classId, studentId))
+        {
+            Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        }
+
+        using var second = await ApplyAsync(classId, studentId);
+
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+
+        using var document = JsonDocument.Parse(await second.Content.ReadAsStringAsync());
+        Assert.Equal(
+            "DUPLICATE_APPLICATION",
+            document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(
+            "You have already applied to this class.",
+            document.RootElement.GetProperty("message").GetString());
+        Assert.False(document.RootElement.TryGetProperty("stackTrace", out _));
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(1, classDocument.RootElement.GetProperty("heldSeats").GetInt32());
+    }
+
+    [Fact]
+    public async Task Apply_WhenStudentAlreadyHasConfirmedAdmission_Returns409Duplicate()
+    {
+        var classId = await CreateClassAsync("Class 6 - Confirmed Duplicate", 5);
+        var studentId = NewStudentId();
+        await InsertHoldAsync(
+            classId,
+            studentId,
+            "CONFIRMED",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        using var response = await ApplyAsync(classId, studentId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(
+            "DUPLICATE_APPLICATION",
+            document.RootElement.GetProperty("code").GetString());
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()

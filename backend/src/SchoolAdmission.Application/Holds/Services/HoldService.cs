@@ -43,6 +43,22 @@ public sealed class HoldService(IAppDbContext db, HoldSettings settings)
                 "No seats are available in this class.");
         }
 
+        var hasActiveApplication = await db.Holds.AnyAsync(
+            hold =>
+                hold.ClassId == classId &&
+                hold.StudentId == studentId &&
+                (hold.Status == HoldStatus.Confirmed ||
+                 (hold.Status == HoldStatus.Held && hold.ExpiresAt > now)),
+            cancellationToken);
+
+        if (hasActiveApplication)
+        {
+            throw new AppException(
+                409,
+                "DUPLICATE_APPLICATION",
+                "You have already applied to this class.");
+        }
+
         var hold = new Hold
         {
             Id = $"h_{Guid.NewGuid():N}",
