@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { toFriendlyMessage } from "../api/errors";
 import type { ClassSummary } from "../api/types";
 import { ClassList } from "../components/ClassList";
+import { CreateClassForm } from "../components/CreateClassForm";
 import { useErrorBanner } from "../context/ErrorBannerContext";
 import { useRole } from "../context/RoleContext";
 import { useStudent } from "../context/StudentContext";
@@ -44,6 +45,15 @@ export function ClassesPage() {
 
   return (
     <section className="panel" aria-label="Classes">
+      {isAdmin && (
+        <CreateClassForm
+          onCreated={() => {
+            setNotice(null);
+            void refresh();
+          }}
+        />
+      )}
+
       <h2>Classes</h2>
 
       {isLoading && data === null && (
