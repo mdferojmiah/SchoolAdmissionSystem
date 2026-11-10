@@ -12,4 +12,7 @@ public interface IAppDbContext
     Task<DateTimeOffset> GetDatabaseUtcNowAsync(CancellationToken cancellationToken);
     Task<IDbContextTransaction> BeginTransactionAsync(
         CancellationToken cancellationToken = default);
+    Task<SchoolClass?> LockClassForUpdateAsync(
+        string classId,
+        CancellationToken cancellationToken);
 }

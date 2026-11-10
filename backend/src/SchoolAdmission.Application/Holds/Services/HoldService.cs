@@ -15,11 +15,7 @@ public sealed class HoldService(IAppDbContext db, HoldSettings settings)
     {
         await using var transaction = await db.BeginTransactionAsync(cancellationToken);
 
-        var schoolClass = await db.Classes
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                candidate => candidate.Id == classId,
-                cancellationToken);
+        var schoolClass = await db.LockClassForUpdateAsync(classId, cancellationToken);
 
         if (schoolClass is null)
         {

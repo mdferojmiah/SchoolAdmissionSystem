@@ -25,6 +25,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         CancellationToken cancellationToken = default) =>
         Database.BeginTransactionAsync(cancellationToken);
 
+    public async Task<SchoolClass?> LockClassForUpdateAsync(
+        string classId,
+        CancellationToken cancellationToken)
+    {
+        var classes = await Classes
+            .FromSqlRaw("SELECT * FROM classes WHERE id = {0} FOR UPDATE", classId)
+            .ToListAsync(cancellationToken);
+
+        return classes.SingleOrDefault();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

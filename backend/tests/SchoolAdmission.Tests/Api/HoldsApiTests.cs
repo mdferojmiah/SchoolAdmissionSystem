@@ -230,6 +230,52 @@ public sealed class HoldsApiTests : IAsyncLifetime
         Assert.Equal(4, classDocument.RootElement.GetProperty("availableSeats").GetInt32());
     }
 
+    [Fact]
+    public async Task Apply_ParallelRequestsNeverExceedTotalSeats()
+    {
+        const int totalSeats = 5;
+        const int attempts = 25;
+        var classId = await CreateClassAsync("Class 6 - Concurrency", totalSeats);
+
+        var responses = await Task.WhenAll(
+            Enumerable.Range(0, attempts)
+                .Select(index => ApplyAsync(classId, StudentIdAt(index))));
+
+        try
+        {
+            var statuses = responses.Select(response => response.StatusCode).ToList();
+
+            Assert.Equal(totalSeats, statuses.Count(status => status == HttpStatusCode.Created));
+            Assert.Equal(
+                attempts - totalSeats,
+                statuses.Count(status => status == HttpStatusCode.Conflict));
+            Assert.DoesNotContain(HttpStatusCode.InternalServerError, statuses);
+        }
+        finally
+        {
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
+        }
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(totalSeats, classDocument.RootElement.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(0, classDocument.RootElement.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(0, classDocument.RootElement.GetProperty("availableSeats").GetInt32());
+
+        await using var connection = new NpgsqlConnection(_fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "select count(*) from holds " +
+            "where class_id = @class_id and status = 'HELD' and expires_at > now()",
+            connection);
+        command.Parameters.AddWithValue("class_id", classId);
+
+        var activeHolds = (long)(await command.ExecuteScalarAsync())!;
+        Assert.Equal((long)totalSeats, activeHolds);
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
@@ -342,6 +388,9 @@ public sealed class HoldsApiTests : IAsyncLifetime
 
     private static string NewStudentId() =>
         Random.Shared.NextInt64(10_000_000_000_000_000, 99_999_999_999_999_999).ToString();
+
+    private static string StudentIdAt(int index) =>
+        (10_000_000_000_000_000L + index).ToString("D17");
 
     private void RememberClass(string id) => _createdClassIds.Add(id);
 }
