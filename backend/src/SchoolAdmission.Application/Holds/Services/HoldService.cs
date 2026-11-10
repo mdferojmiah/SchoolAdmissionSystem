@@ -86,4 +86,34 @@ public sealed class HoldService(IAppDbContext db, HoldSettings settings)
             hold.Status.ToString().ToUpperInvariant(),
             hold.ExpiresAt);
     }
+
+    public async Task<HoldDetails> GetAsync(
+        string holdId,
+        CancellationToken cancellationToken)
+    {
+        var hold = await db.Holds
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == holdId, cancellationToken);
+
+        if (hold is null)
+        {
+            throw new AppException(404, "HOLD_NOT_FOUND", "Hold not found.");
+        }
+
+        var now = await db.GetDatabaseUtcNowAsync(cancellationToken);
+
+        return new HoldDetails(
+            hold.Id,
+            hold.ClassId,
+            ToApiStatus(hold.Status, hold.ExpiresAt, now),
+            hold.ExpiresAt);
+    }
+
+    private static string ToApiStatus(
+        HoldStatus status,
+        DateTimeOffset expiresAt,
+        DateTimeOffset now) =>
+        status == HoldStatus.Held && expiresAt <= now
+            ? "EXPIRED"
+            : status.ToString().ToUpperInvariant();
 }

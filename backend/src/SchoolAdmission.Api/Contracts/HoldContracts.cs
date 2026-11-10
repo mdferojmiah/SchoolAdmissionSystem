@@ -6,3 +6,9 @@ public sealed record ApplyHoldResponse(
     string StudentId,
     string Status,
     DateTimeOffset ExpiresAt);
+
+public sealed record HoldStatusResponse(
+    string HoldId,
+    string ClassId,
+    string Status,
+    DateTimeOffset ExpiresAt);
