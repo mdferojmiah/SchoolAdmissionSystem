@@ -5,6 +5,8 @@ using SchoolAdmission.Api;
 using SchoolAdmission.Api.ExceptionHandling;
 using SchoolAdmission.Api.Logging;
 using SchoolAdmission.Api.Startup;
+using SchoolAdmission.Application.Classes;
+using SchoolAdmission.Application.Persistence;
 using SchoolAdmission.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +24,9 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
         "Set ConnectionStrings__Default or DATABASE_URL for the PostgreSQL connection.");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddScoped<ClassService>();
+builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
@@ -65,6 +70,7 @@ app.UseExceptionHandler();
 app.UseCors();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapControllers();
 
 app.Run();
 
