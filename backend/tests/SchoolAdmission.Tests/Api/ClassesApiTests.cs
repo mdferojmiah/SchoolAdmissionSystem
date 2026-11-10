@@ -49,6 +49,34 @@ public sealed class ClassesApiTests : IAsyncLifetime
         Assert.EndsWith($"/classes/{id}", response.Headers.Location!.ToString());
     }
 
+    [Fact]
+    public async Task GetClass_ReturnsSeatSummaryWithZeroHolds()
+    {
+        var id = await CreateClassAsync("Class 7", 30);
+
+        using var document = await GetClassAsync(id);
+        var body = document.RootElement;
+
+        Assert.Equal(id, body.GetProperty("id").GetString());
+        Assert.Equal("Class 7", body.GetProperty("name").GetString());
+        Assert.Equal(30, body.GetProperty("totalSeats").GetInt32());
+        Assert.Equal(0, body.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(0, body.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(30, body.GetProperty("availableSeats").GetInt32());
+    }
+
+    [Fact]
+    public async Task GetClass_UnknownId_Returns404ProblemDetails()
+    {
+        using var response = await _client.GetAsync($"/classes/c_missing_{Guid.NewGuid():N}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("CLASS_NOT_FOUND", document.RootElement.GetProperty("code").GetString());
+        Assert.False(document.RootElement.TryGetProperty("stackTrace", out _));
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()

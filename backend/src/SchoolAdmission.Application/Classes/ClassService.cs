@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SchoolAdmission.Application.Persistence;
 using SchoolAdmission.Domain.Entities;
 
@@ -28,5 +29,26 @@ public sealed class ClassService(IAppDbContext db)
             0,
             0,
             schoolClass.TotalSeats);
+    }
+
+    public async Task<ClassSummary?> GetAsync(
+        string classId,
+        CancellationToken cancellationToken)
+    {
+        var schoolClass = await db.Classes
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == classId,
+                cancellationToken);
+
+        return schoolClass is null
+            ? null
+            : new ClassSummary(
+                schoolClass.Id,
+                schoolClass.Name,
+                schoolClass.TotalSeats,
+                0,
+                0,
+                schoolClass.TotalSeats);
     }
 }

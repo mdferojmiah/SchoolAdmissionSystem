@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SchoolAdmission.Api.Contracts;
 using SchoolAdmission.Application.Classes;
+using SchoolAdmission.Application.Exceptions;
 
 namespace SchoolAdmission.Api.Controllers;
 
@@ -22,4 +23,28 @@ public sealed class ClassesController(ClassService classService) : ControllerBas
             $"/classes/{created.Id}",
             new CreateClassResponse(created.Id, created.Name, created.TotalSeats));
     }
+
+    [HttpGet("{classId}")]
+    public async Task<ActionResult<ClassResponse>> Get(
+        string classId,
+        CancellationToken cancellationToken)
+    {
+        var schoolClass = await classService.GetAsync(classId, cancellationToken);
+
+        if (schoolClass is null)
+        {
+            throw new AppException(404, "CLASS_NOT_FOUND", "Class not found.");
+        }
+
+        return Ok(ToResponse(schoolClass));
+    }
+
+    private static ClassResponse ToResponse(ClassSummary summary) =>
+        new(
+            summary.Id,
+            summary.Name,
+            summary.TotalSeats,
+            summary.HeldSeats,
+            summary.ConfirmedSeats,
+            summary.AvailableSeats);
 }
