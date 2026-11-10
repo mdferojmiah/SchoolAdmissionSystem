@@ -7,6 +7,7 @@ using SchoolAdmission.Api.ExceptionHandling;
 using SchoolAdmission.Api.Logging;
 using SchoolAdmission.Api.Startup;
 using SchoolAdmission.Application.Classes;
+using SchoolAdmission.Application.Holds;
 using SchoolAdmission.Application.Persistence;
 using SchoolAdmission.Infrastructure;
 
@@ -26,6 +27,9 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<ClassService>();
+builder.Services.AddSingleton(new HoldSettings(
+    builder.Configuration.GetValue("HOLD_DURATION_SECONDS", 600)));
+builder.Services.AddScoped<HoldService>();
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 builder.Services.AddControllers();
 builder.Services.Configure<ApiBehaviorOptions>(options =>

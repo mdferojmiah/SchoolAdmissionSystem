@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using SchoolAdmission.Application.Persistence;
 using SchoolAdmission.Domain.Entities;
 
@@ -19,6 +20,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         return new DateTimeOffset(DateTime.SpecifyKind(now, DateTimeKind.Utc));
     }
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(
+        CancellationToken cancellationToken = default) =>
+        Database.BeginTransactionAsync(cancellationToken);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
