@@ -19,7 +19,7 @@ export function usePolling<T>(
 
   const fetcherRef = useRef(fetcher);
   const mountedRef = useRef(true);
-  const inFlightRef = useRef(false);
+  const inFlightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     fetcherRef.current = fetcher;
@@ -27,28 +27,43 @@ export function usePolling<T>(
 
   const run = useCallback(async () => {
     if (inFlightRef.current) {
-      return;
+      return inFlightRef.current;
     }
 
-    inFlightRef.current = true;
+    const task = (async () => {
+      try {
+        const next = await fetcherRef.current();
+        if (mountedRef.current) {
+          setData(next);
+          setError(null);
+        }
+      } catch (caught) {
+        if (mountedRef.current) {
+          setError(caught);
+        }
+      } finally {
+        if (mountedRef.current) {
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    inFlightRef.current = task;
 
     try {
-      const next = await fetcherRef.current();
-      if (mountedRef.current) {
-        setData(next);
-        setError(null);
-      }
-    } catch (caught) {
-      if (mountedRef.current) {
-        setError(caught);
-      }
+      await task;
     } finally {
-      inFlightRef.current = false;
-      if (mountedRef.current) {
-        setIsLoading(false);
-      }
+      inFlightRef.current = null;
     }
   }, []);
+
+  const refresh = useCallback(async () => {
+    if (inFlightRef.current) {
+      await inFlightRef.current;
+    }
+
+    await run();
+  }, [run]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -64,5 +79,5 @@ export function usePolling<T>(
     };
   }, [intervalMs, run]);
 
-  return { data, error, isLoading, refresh: run };
+  return { data, error, isLoading, refresh };
 }

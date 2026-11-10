@@ -16,6 +16,8 @@ const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8080").replac
 );
 const DEFAULT_NETWORK_MESSAGE = "Cannot reach the server. Please try again.";
 
+let lastServerDate: Date | null = null;
+
 interface RequestOptions {
   method?: "GET" | "POST" | "DELETE";
   studentId?: string;
@@ -80,6 +82,8 @@ async function request<T>(
     throw new ApiError(0, "NETWORK_ERROR", DEFAULT_NETWORK_MESSAGE);
   }
 
+  rememberServerDate(response);
+
   if (!response.ok) {
     const body = await parseProblemDetails(response);
     throw new ApiError(
@@ -102,6 +106,22 @@ async function request<T>(
       "The server sent an unexpected response.",
     );
   }
+}
+
+function rememberServerDate(response: Response): void {
+  const header = response.headers.get("Date");
+  if (!header) {
+    return;
+  }
+
+  const parsed = new Date(header);
+  if (!Number.isNaN(parsed.getTime())) {
+    lastServerDate = parsed;
+  }
+}
+
+export function getLastServerDate(): Date | null {
+  return lastServerDate;
 }
 
 export const api = {

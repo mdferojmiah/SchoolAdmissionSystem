@@ -25,21 +25,31 @@ export function StudentIdBar() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (saveStudentId(value)) {
+    const result = saveStudentId(value);
+
+    if (result === "saved") {
       setError(null);
       setSaved(true);
       return;
     }
 
     setSaved(false);
-    setError("Enter exactly 17 digits.");
+    setError(
+      result === "invalid"
+        ? "Enter exactly 17 digits."
+        : "Saved for this session only. This browser is blocking storage.",
+    );
   }
 
   function handleClear() {
-    clearStudentId();
+    const persisted = clearStudentId();
     setValue("");
-    setError(null);
     setSaved(false);
+    setError(
+      persisted
+        ? null
+        : "Cleared for this session only. This browser is blocking storage.",
+    );
   }
 
   return (

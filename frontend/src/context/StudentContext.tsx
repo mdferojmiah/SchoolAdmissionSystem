@@ -3,11 +3,13 @@ import type { ReactNode } from "react";
 import { readStorage, STORAGE_KEYS, writeStorage } from "../utils/storage";
 import { isValidStudentId, STUDENT_ID_LENGTH } from "../utils/studentId";
 
+export type SaveStudentResult = "saved" | "invalid" | "not-persisted";
+
 export interface StudentContextValue {
   studentId: string;
   hasStudentId: boolean;
-  saveStudentId(raw: string): boolean;
-  clearStudentId(): void;
+  saveStudentId(raw: string): SaveStudentResult;
+  clearStudentId(): boolean;
 }
 
 const StudentContext = createContext<StudentContextValue | null>(null);
@@ -25,16 +27,17 @@ export function StudentProvider({ children }: { children: ReactNode }) {
       saveStudentId(raw: string) {
         const next = raw.trim();
         if (!isValidStudentId(next)) {
-          return false;
+          return "invalid";
         }
 
         setStudentId(next);
-        writeStorage(STORAGE_KEYS.studentId, next);
-        return true;
+        return writeStorage(STORAGE_KEYS.studentId, next)
+          ? "saved"
+          : "not-persisted";
       },
       clearStudentId() {
         setStudentId("");
-        writeStorage(STORAGE_KEYS.studentId, null);
+        return writeStorage(STORAGE_KEYS.studentId, null);
       },
     }),
     [studentId],
