@@ -46,7 +46,6 @@ services:
       target: test
     profiles: ["test"]
     environment:
-      ConnectionStrings__Default: Host=db;Port=5432;Database=school_admission;Username=postgres;Password=postgres
       HOLD_DURATION_SECONDS: "600"
       CORS_ORIGINS: http://localhost:3000
     depends_on:
