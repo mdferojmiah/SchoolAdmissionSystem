@@ -31,6 +31,25 @@ public sealed class ClassService(IAppDbContext db)
             schoolClass.TotalSeats);
     }
 
+    public async Task<IReadOnlyList<ClassSummary>> ListAsync(
+        CancellationToken cancellationToken)
+    {
+        var classes = await db.Classes
+            .AsNoTracking()
+            .OrderBy(schoolClass => schoolClass.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return classes
+            .Select(schoolClass => new ClassSummary(
+                schoolClass.Id,
+                schoolClass.Name,
+                schoolClass.TotalSeats,
+                0,
+                0,
+                schoolClass.TotalSeats))
+            .ToList();
+    }
+
     public async Task<ClassSummary?> GetAsync(
         string classId,
         CancellationToken cancellationToken)

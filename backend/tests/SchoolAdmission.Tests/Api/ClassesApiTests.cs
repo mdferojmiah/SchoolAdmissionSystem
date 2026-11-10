@@ -77,6 +77,26 @@ public sealed class ClassesApiTests : IAsyncLifetime
         Assert.False(document.RootElement.TryGetProperty("stackTrace", out _));
     }
 
+    [Fact]
+    public async Task GetClasses_ReturnsCreatedClassWithSeatSummary()
+    {
+        var id = await CreateClassAsync("Class 8 - Morning Shift", 40);
+
+        using var response = await _client.GetAsync("/classes");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var posted = document.RootElement
+            .EnumerateArray()
+            .Single(item => item.GetProperty("id").GetString() == id);
+
+        Assert.Equal("Class 8 - Morning Shift", posted.GetProperty("name").GetString());
+        Assert.Equal(40, posted.GetProperty("totalSeats").GetInt32());
+        Assert.Equal(0, posted.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(0, posted.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(40, posted.GetProperty("availableSeats").GetInt32());
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()

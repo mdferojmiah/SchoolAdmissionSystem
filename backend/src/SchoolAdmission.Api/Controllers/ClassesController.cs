@@ -24,6 +24,14 @@ public sealed class ClassesController(ClassService classService) : ControllerBas
             new CreateClassResponse(created.Id, created.Name, created.TotalSeats));
     }
 
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<ClassResponse>>> List(
+        CancellationToken cancellationToken)
+    {
+        var classes = await classService.ListAsync(cancellationToken);
+        return Ok(classes.Select(ToResponse).ToList());
+    }
+
     [HttpGet("{classId}")]
     public async Task<ActionResult<ClassResponse>> Get(
         string classId,
