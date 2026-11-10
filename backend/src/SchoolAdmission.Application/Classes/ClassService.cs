@@ -12,11 +12,13 @@ public sealed class ClassService(IAppDbContext db)
         int totalSeats,
         CancellationToken cancellationToken)
     {
+        var validated = ClassValidator.Validate(name, totalSeats);
+
         var schoolClass = new SchoolClass
         {
             Id = $"c_{Guid.NewGuid():N}",
-            Name = name!,
-            TotalSeats = totalSeats,
+            Name = validated.Name,
+            TotalSeats = validated.TotalSeats,
             CreatedAt = DateTimeOffset.UtcNow
         };
 

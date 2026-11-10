@@ -49,6 +49,55 @@ public sealed class ClassesApiTests : IAsyncLifetime
         Assert.EndsWith($"/classes/{id}", response.Headers.Location!.ToString());
     }
 
+    [Theory]
+    [InlineData(null, 10)]
+    [InlineData("", 10)]
+    [InlineData("   ", 10)]
+    [InlineData("Class 10", 0)]
+    [InlineData("Class 10", -1)]
+    public async Task CreateClass_InvalidInput_Returns400ProblemDetails(
+        string? name,
+        int totalSeats)
+    {
+        using var response = await _client.PostAsJsonAsync("/classes", new { name, totalSeats });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VALIDATION_ERROR", document.RootElement.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(
+            document.RootElement.GetProperty("message").GetString()));
+        Assert.False(document.RootElement.TryGetProperty("stackTrace", out _));
+    }
+
+    [Fact]
+    public async Task CreateClass_NameLongerThan200Characters_Returns400()
+    {
+        using var response = await _client.PostAsJsonAsync("/classes", new
+        {
+            name = new string('A', 201),
+            totalSeats = 10
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateClass_TrimsName()
+    {
+        using var response = await _client.PostAsJsonAsync("/classes", new
+        {
+            name = "  Class 11  ",
+            totalSeats = 12
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        RememberClass(document.RootElement.GetProperty("id").GetString()!);
+        Assert.Equal("Class 11", document.RootElement.GetProperty("name").GetString());
+    }
+
     [Fact]
     public async Task GetClass_ReturnsSeatSummaryWithZeroHolds()
     {
