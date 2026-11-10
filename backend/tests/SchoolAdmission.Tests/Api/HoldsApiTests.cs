@@ -84,6 +84,75 @@ public sealed class HoldsApiTests : IAsyncLifetime
         Assert.False(document.RootElement.TryGetProperty("stackTrace", out _));
     }
 
+    [Fact]
+    public async Task Apply_WhenConfirmedSeatsFillTheClass_Returns409NoSeats()
+    {
+        var classId = await CreateClassAsync("Class 6 - Confirmed Full", 1);
+        await InsertHoldAsync(
+            classId,
+            NewStudentId(),
+            "CONFIRMED",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        using var response = await ApplyAsync(classId, NewStudentId());
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("NO_SEATS", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(
+            "No seats are available in this class.",
+            document.RootElement.GetProperty("message").GetString());
+        Assert.False(document.RootElement.TryGetProperty("stackTrace", out _));
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(1, classDocument.RootElement.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(0, classDocument.RootElement.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(0, classDocument.RootElement.GetProperty("availableSeats").GetInt32());
+    }
+
+    [Fact]
+    public async Task Apply_WhenHeldAndConfirmedSeatsFillTheClass_Returns409NoSeats()
+    {
+        var classId = await CreateClassAsync("Class 6 - Held Full", 2);
+        await InsertHoldAsync(
+            classId,
+            NewStudentId(),
+            "HELD",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+        await InsertHoldAsync(
+            classId,
+            NewStudentId(),
+            "CONFIRMED",
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        using var response = await ApplyAsync(classId, NewStudentId());
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("NO_SEATS", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Apply_ExpiredHoldFreesSeatWithoutApiCall()
+    {
+        var classId = await CreateClassAsync("Class 6 - Expired Seat", 1);
+        await InsertHoldAsync(
+            classId,
+            NewStudentId(),
+            "HELD",
+            DateTimeOffset.UtcNow.AddMinutes(-10));
+
+        using var response = await ApplyAsync(classId, NewStudentId());
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(1, classDocument.RootElement.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(0, classDocument.RootElement.GetProperty("availableSeats").GetInt32());
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
@@ -110,6 +179,36 @@ public sealed class HoldsApiTests : IAsyncLifetime
 
             await command.ExecuteNonQueryAsync();
         }
+    }
+
+    private async Task InsertHoldAsync(
+        string classId,
+        string studentId,
+        string status,
+        DateTimeOffset expiresAt)
+    {
+        await using var connection = new NpgsqlConnection(_fixture.ConnectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "insert into holds (id, class_id, student_id, status, expires_at, created_at) " +
+            "values (@id, @class_id, @student_id, @status, @expires_at, now())",
+            connection);
+        command.Parameters.AddWithValue("id", $"h_{Guid.NewGuid():N}");
+        command.Parameters.AddWithValue("class_id", classId);
+        command.Parameters.AddWithValue("student_id", studentId);
+        command.Parameters.AddWithValue("status", status);
+        command.Parameters.AddWithValue("expires_at", expiresAt);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<JsonDocument> GetClassAsync(string classId)
+    {
+        using var response = await _client.GetAsync($"/classes/{classId}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
     }
 
     private async Task<string> CreateClassAsync(string name, int totalSeats)

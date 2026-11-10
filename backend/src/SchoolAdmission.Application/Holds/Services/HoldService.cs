@@ -28,6 +28,21 @@ public sealed class HoldService(IAppDbContext db, HoldSettings settings)
 
         var now = await db.GetDatabaseUtcNowAsync(cancellationToken);
 
+        var occupiedSeats = await db.Holds.CountAsync(
+            hold =>
+                hold.ClassId == classId &&
+                (hold.Status == HoldStatus.Confirmed ||
+                 (hold.Status == HoldStatus.Held && hold.ExpiresAt > now)),
+            cancellationToken);
+
+        if (occupiedSeats >= schoolClass.TotalSeats)
+        {
+            throw new AppException(
+                409,
+                "NO_SEATS",
+                "No seats are available in this class.");
+        }
+
         var hold = new Hold
         {
             Id = $"h_{Guid.NewGuid():N}",
