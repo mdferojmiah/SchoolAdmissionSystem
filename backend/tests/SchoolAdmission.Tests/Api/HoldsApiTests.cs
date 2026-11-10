@@ -202,6 +202,34 @@ public sealed class HoldsApiTests : IAsyncLifetime
             document.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task Apply_AfterOwnHoldExpired_CreatesNewHoldAndMarksOldExpired()
+    {
+        var classId = await CreateClassAsync("Class 6 - Reapply", 5);
+        var studentId = NewStudentId();
+        await InsertHoldAsync(
+            classId,
+            studentId,
+            "HELD",
+            DateTimeOffset.UtcNow.AddMinutes(-10));
+
+        using var response = await ApplyAsync(classId, studentId);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var newHoldId = document.RootElement.GetProperty("holdId").GetString();
+        Assert.StartsWith("h_", newHoldId);
+
+        var statuses = await CountHoldsByStatusAsync(classId, studentId);
+        Assert.Equal(1L, statuses["HELD"]);
+        Assert.Equal(1L, statuses["EXPIRED"]);
+
+        using var classDocument = await GetClassAsync(classId);
+        Assert.Equal(1, classDocument.RootElement.GetProperty("heldSeats").GetInt32());
+        Assert.Equal(4, classDocument.RootElement.GetProperty("availableSeats").GetInt32());
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
@@ -258,6 +286,31 @@ public sealed class HoldsApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    }
+
+    private async Task<Dictionary<string, long>> CountHoldsByStatusAsync(
+        string classId,
+        string studentId)
+    {
+        await using var connection = new NpgsqlConnection(_fixture.ConnectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "select status, count(*) from holds " +
+            "where class_id = @class_id and student_id = @student_id " +
+            "group by status",
+            connection);
+        command.Parameters.AddWithValue("class_id", classId);
+        command.Parameters.AddWithValue("student_id", studentId);
+
+        var counts = new Dictionary<string, long>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            counts[reader.GetString(0)] = reader.GetInt64(1);
+        }
+
+        return counts;
     }
 
     private async Task<string> CreateClassAsync(string name, int totalSeats)

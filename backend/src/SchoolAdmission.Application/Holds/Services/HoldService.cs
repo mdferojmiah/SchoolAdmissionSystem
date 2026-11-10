@@ -28,6 +28,16 @@ public sealed class HoldService(IAppDbContext db, HoldSettings settings)
 
         var now = await db.GetDatabaseUtcNowAsync(cancellationToken);
 
+        await db.Holds
+            .Where(hold =>
+                hold.ClassId == classId &&
+                hold.StudentId == studentId &&
+                hold.Status == HoldStatus.Held &&
+                hold.ExpiresAt <= now)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(hold => hold.Status, HoldStatus.Expired),
+                cancellationToken);
+
         var occupiedSeats = await db.Holds.CountAsync(
             hold =>
                 hold.ClassId == classId &&
