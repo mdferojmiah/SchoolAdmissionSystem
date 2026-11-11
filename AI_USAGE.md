@@ -30,6 +30,7 @@ This project was developed using **Google Antigravity** (powered by Gemini model
 | **FER-12** | Class Management UI | Admin Class Creation form with validation, live polling Class List with dynamic seat count indicators and Guardian "Apply" action. |
 | **FER-13** | Application Card & Expiry | Hold application card with server-clock-corrected countdown timer, instant zero-reload status change to `EXPIRED`, payment confirmation, and cancellation. |
 | **FER-14** | Docs & Verification | `README.md`, `ASSUMPTIONS.md`, `AI_USAGE.md`, end-to-end workflow verification, Docker Compose validation, and submission preparation. |
+| **FER-15** | Bonus: Multi-Process Proof & Frontend Tests | Multi-process concurrency proof running two Kestrel web hosts on ports 5101 and 5102, and Vitest + React Testing Library test suite for frontend components. |
 
 ---
 
@@ -60,3 +61,7 @@ During development, several edge cases, framework changes, and test issues were 
 6. **Storage Access Failures in Restricted Browser Environments:**
    - *Problem:* In private/incognito browsing or browsers with disabled local storage, calls to `localStorage.setItem` can throw `DOMException`.
    - *Fix:* Wrapped student identity and role storage operations in defensive try/catch blocks with in-memory fallbacks, preventing unhandled exceptions and blank pages.
+
+7. **Multi-Process Class ID Property Name and RTL Dual Button Query:**
+   - *Problem:* When asserting class creation response in the multi-process test, the property was accessed as `classId` instead of `id`. In frontend tests, `screen.getByRole("button", { name: /Processing…/i })` failed because both Pay and Cancel buttons display "Processing…" while `isProcessing` is true.
+   - *Fix:* Corrected property access to `id` in `MultiProcessConcurrencyTests.cs`, and used `getAllByRole` to verify that both buttons are disabled during processing.

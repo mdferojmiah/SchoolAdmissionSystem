@@ -62,6 +62,21 @@ To run specifically the 5 core specification integration tests (`AdmissionSystem
 docker compose run --rm backend-tests --filter FullyQualifiedName~AdmissionSystemIntegrationTests
 ```
 
+To run the multi-process concurrency proof test (2 servers on ports 5101 and 5102):
+
+```bash
+docker compose run --rm backend-tests --filter FullyQualifiedName~MultiProcessConcurrencyTests
+```
+
+### Frontend Automated Tests (Vitest + React Testing Library)
+
+Automated frontend unit and component tests verify the countdown timer expiry without page reload (**Rule U2**), disabled payment and cancel buttons, friendly error banner presentation (**Rule U5**), and crash fallback boundaries:
+
+```bash
+cd frontend
+npm test
+```
+
 ### Specification Test Coverage (Rules R1 – R5)
 
 The integration test suite (`SchoolAdmission.Tests/Api/AdmissionSystemIntegrationTests.cs`) verifies the mandatory system guarantees:

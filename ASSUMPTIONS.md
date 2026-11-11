@@ -6,12 +6,13 @@ This document outlines key technical assumptions, architectural choices, and des
 
 ## 1. Concurrency and Multi-Process Seat Safety (Rule R1)
 
-- **PostgreSQL Row-Level Locking:** Concurrency safety is achieved at the database engine level rather than through in-memory locks (such as C# `lock`, `SemaphoreSlim`, or local channel queues).
+- **PostgreSQL Row-Level Locking:** Concurrency safety is achieved at the database engine level rather than through in-memory locks (such as C# `lock`, `SemaphoreSlim`, or local channel queues). In-memory synchronization primitives only coordinate threads within a single operating system process and fail across multiple processes or replicas.
 - **Explicit Transaction Boundary:** During seat application (`POST /classes/{classId}/holds`), the backend initiates an explicit database transaction with `ReadCommitted` isolation and executes:
   ```sql
-  SELECT id, total_seats FROM classes WHERE id = @classId FOR UPDATE;
+  SELECT * FROM classes WHERE id = @classId FOR UPDATE;
   ```
-- **Horizontal Scaling Safety:** Because `SELECT ... FOR UPDATE` is held until the transaction commits or rolls back, multiple backend processes, instances, or Docker containers running against the same PostgreSQL database are serialized safely. Over-subscription is mathematically prevented.
+- **Horizontal Scaling Safety:** Because `SELECT ... FOR UPDATE` is held until the transaction commits or rolls back, multiple backend processes, instances, or Docker containers running against the same PostgreSQL database are serialized safely at the database engine level. Over-subscription is mathematically prevented.
+- **Multi-Process Concurrency Proof:** Verified by `MultiProcessConcurrencyTests.cs` (FER-15), which spins up two distinct Kestrel web servers on different ports (`http://127.0.0.1:5101` and `http://127.0.0.1:5102`) targeting the same PostgreSQL instance. Thirty simultaneous requests fired concurrently across both ports to a 5-seat class resulted in exactly 5 successes, 25 rejections with `NO_SEATS`, 0 internal server errors, and exactly 5 active holds in PostgreSQL.
 - **Confirmation Locking:** The confirmation endpoint similarly locks the hold record with `FOR UPDATE` to guarantee idempotent status transitions without race conditions.
 
 ---
