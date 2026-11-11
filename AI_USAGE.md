@@ -6,7 +6,7 @@ This document details how AI assistance was leveraged during the development of 
 
 ## 1. Engineering Leadership & Development Philosophy
 
-Rather than treating the AI as an autonomous developer, I approached the project with a strict **human-in-the-loop pair programming model**, acting as the lead software architect and technical reviewer while directing the AI as an implementation assistant.
+Rather than treating the AI as an autonomous developer, I approached the project with a strict **human-in-the-loop pair programming model**, acting as the software architect and technical reviewer while directing the AI as an implementation assistant.
 
 ### Core Working Principles
 1. **Human-Led Architecture:** I established the foundational architecture, domain model boundaries, and database locking strategies before any code was written. The AI was not allowed to improvise architectural patterns or introduce unauthorized third-party dependencies.
