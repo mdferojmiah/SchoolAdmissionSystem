@@ -16,9 +16,9 @@ using SchoolAdmission.Tests.Infrastructure;
 namespace SchoolAdmission.Tests.Api;
 
 /// <summary>
-/// Bonus Verification (FER-15 / Architecture Section 8 / TASKS.md):
+/// Multi-Process Concurrency Verification:
 /// Proves that running two backend processes on different ports against the same database
-/// guarantees held + confirmed seats never exceed total seats (Rule R1).
+/// guarantees held + confirmed seats never exceed total seats.
 /// </summary>
 [Collection("PostgresSchema")]
 public sealed class MultiProcessConcurrencyTests : IAsyncLifetime

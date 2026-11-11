@@ -4,7 +4,7 @@ This document outlines key technical assumptions, architectural choices, and des
 
 ---
 
-## 1. Concurrency and Multi-Process Seat Safety (Rule R1)
+## 1. Concurrency and Multi-Process Seat Safety
 
 - **PostgreSQL Row-Level Locking:** Concurrency safety is achieved at the database engine level rather than through in-memory locks (such as C# `lock`, `SemaphoreSlim`, or local channel queues). In-memory synchronization primitives only coordinate threads within a single operating system process and fail across multiple processes or replicas.
 - **Explicit Transaction Boundary:** During seat application (`POST /classes/{classId}/holds`), the backend initiates an explicit database transaction with `ReadCommitted` isolation and executes:
@@ -12,12 +12,12 @@ This document outlines key technical assumptions, architectural choices, and des
   SELECT * FROM classes WHERE id = @classId FOR UPDATE;
   ```
 - **Horizontal Scaling Safety:** Because `SELECT ... FOR UPDATE` is held until the transaction commits or rolls back, multiple backend processes, instances, or Docker containers running against the same PostgreSQL database are serialized safely at the database engine level. Over-subscription is mathematically prevented.
-- **Multi-Process Concurrency Proof:** Verified by `MultiProcessConcurrencyTests.cs` (FER-15), which spins up two distinct Kestrel web servers on different ports (`http://127.0.0.1:5101` and `http://127.0.0.1:5102`) targeting the same PostgreSQL instance. Thirty simultaneous requests fired concurrently across both ports to a 5-seat class resulted in exactly 5 successes, 25 rejections with `NO_SEATS`, 0 internal server errors, and exactly 5 active holds in PostgreSQL.
+- **Multi-Process Concurrency Proof:** Verified by the multi-process integration test (`MultiProcessConcurrencyTests.cs`), which spins up two distinct Kestrel web servers on different ports (`http://127.0.0.1:5101` and `http://127.0.0.1:5102`) targeting the same PostgreSQL instance. Thirty simultaneous requests fired concurrently across both ports to a 5-seat class resulted in exactly 5 successes, 25 rejections with `NO_SEATS`, 0 internal server errors, and exactly 5 active holds in PostgreSQL.
 - **Confirmation Locking:** The confirmation endpoint similarly locks the hold record with `FOR UPDATE` to guarantee idempotent status transitions without race conditions.
 
 ---
 
-## 2. Lazy Hold Expiry (Rule R2)
+## 2. Lazy Hold Expiry
 
 - **No Background Sweepers or Cron Jobs:** Seat availability is evaluated dynamically based on database clock time:
   ```sql
@@ -37,20 +37,20 @@ This document outlines key technical assumptions, architectural choices, and des
 
 ---
 
-## 4. Student Identity & Ownership (Rules R3, R4)
+## 4. Student Identity & Ownership Verification
 
 - **Identity Header:** Student identity is asserted via the `X-Student-Id` HTTP request header, which must contain exactly 17 digits. No student passwords or registration accounts exist.
-- **Persistence Across Browser Sessions:** The frontend stores the student ID in `localStorage` so that refreshing or reopening the browser preserves identity and re-fetches the student's ongoing applications via `GET /me/holds` (**Rule U4**).
+- **Persistence Across Browser Sessions:** The frontend stores the student ID in `localStorage` so that refreshing or reopening the browser preserves identity and re-fetches the student's ongoing applications via `GET /me/holds`.
 - **Ownership Verification:** A student can only confirm or cancel their own holds. Mismatched IDs return HTTP 403 Forbidden with code `NOT_HOLD_OWNER`.
 - **Database Duplicate Guard:** A PostgreSQL partial unique index on `(class_id, student_id) WHERE status IN ('HELD', 'CONFIRMED')` guarantees at the database level that a student cannot have duplicate active applications in the same class.
 
 ---
 
-## 5. Payment Simulation (Rules R4, R5)
+## 5. Payment Simulation and Confirmation Idempotence
 
 - **Simulated Payment Gateway:** Clicking "Pay Admission Fee" in the frontend assumes instant and successful fee payment.
 - **State Transition:** The hold transition from `HELD` to `CONFIRMED` occurs atomically in the backend upon receiving the confirm request.
-- **Idempotence:** Subsequent calls to confirm a hold that is already confirmed return HTTP 200 OK without incrementing seat counts or erroring (**Rule R5**).
+- **Idempotence:** Subsequent calls to confirm a hold that is already confirmed return HTTP 200 OK without incrementing seat counts or erroring.
 
 ---
 
@@ -60,7 +60,10 @@ This document outlines key technical assumptions, architectural choices, and des
 
 ---
 
-## 7. Data Persistence (Rule R6)
+## 7. Data Persistence
+
+- **Named Docker Volume:** All database tables, indexes, and records reside in the named volume `db-data`.
+- **Lifecycle Guarantees:** Running `docker compose down` and subsequently `docker compose up` preserves all classes, holds, and student records. The volume is only removed if explicitly instructed via `docker compose down -v`.
 
 - **Named Docker Volume:** All database tables, indexes, and records reside in the named volume `db-data`.
 - **Lifecycle Guarantees:** Running `docker compose down` and subsequently `docker compose up` preserves all classes, holds, and student records. The volume is only removed if explicitly instructed via `docker compose down -v`.

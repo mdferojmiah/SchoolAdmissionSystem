@@ -16,7 +16,7 @@ export function ApplicationCard({
 }: ApplicationCardProps) {
   const { display, isExpired } = useCountdown(hold.expiresAt);
 
-  // If status is HELD and timer expired locally, display EXPIRED (Rule U2)
+  // If status is HELD and timer expired locally, display EXPIRED
   const effectiveStatus =
     hold.status === "HELD" && isExpired ? "EXPIRED" : hold.status;
 

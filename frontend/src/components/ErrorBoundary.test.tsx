@@ -6,7 +6,7 @@ function Bomb(): never {
   throw new Error("Unexpected crash!");
 }
 
-describe("ErrorBoundary component (Rule U5)", () => {
+describe("ErrorBoundary component", () => {
   it("renders friendly fallback UI when a child crashes instead of blank page", () => {
     // Suppress console.error in test output
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});

@@ -14,7 +14,7 @@ function RoleStatusDisplay() {
   );
 }
 
-describe("RoleSwitcher direct toggle (Rule U1, U4)", () => {
+describe("RoleSwitcher direct toggle", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });

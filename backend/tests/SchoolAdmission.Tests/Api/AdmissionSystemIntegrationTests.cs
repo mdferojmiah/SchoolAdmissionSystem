@@ -9,8 +9,7 @@ using SchoolAdmission.Tests.Infrastructure;
 namespace SchoolAdmission.Tests.Api;
 
 /// <summary>
-/// Mandatory backend automated integration tests required by the project specification
-/// (Section 4, Architecture Section 8, Tasks FER-10).
+/// Mandatory backend automated integration tests required by the project specification.
 /// Tests execute against a real PostgreSQL 16 database managed by Docker Compose.
 /// </summary>
 [Collection("PostgresSchema")]
@@ -34,7 +33,7 @@ public sealed class AdmissionSystemIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Spec Test 1 (Rule R1):
+    /// Spec Test 1:
     /// Concurrency: Fire N parallel requests to hold seats for a class with M seats (N >> M).
     /// Assert that exactly M succeed (201 Created), N - M receive 409 Conflict,
     /// and held + confirmed seats never exceed totalSeats.
@@ -100,7 +99,7 @@ public sealed class AdmissionSystemIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Spec Test 2 (Rule R3):
+    /// Spec Test 2:
     /// Duplicate apply: Verify that the same student applying twice to the same class
     /// is rejected (409 Conflict) while active or confirmed.
     /// </summary>
@@ -151,7 +150,7 @@ public sealed class AdmissionSystemIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Spec Test 3 (Rule R5):
+    /// Spec Test 3:
     /// Confirm twice: Verify that confirming a hold twice returns the hold
     /// but raises confirmedSeats only once. Concurrent confirms on the same hold
     /// also increment confirmedSeats only once.
@@ -238,7 +237,7 @@ public sealed class AdmissionSystemIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Spec Test 4 (Rules R2, R4):
+    /// Spec Test 4:
     /// Expired hold: Verify that an expired hold frees the seat (without an API call
     /// or background worker) and cannot be confirmed (409 Conflict).
     /// </summary>
@@ -258,7 +257,7 @@ public sealed class AdmissionSystemIntegrationTests : IAsyncLifetime
             "HELD",
             DateTimeOffset.UtcNow.AddMinutes(-10));
 
-        // 3. Verify the expired hold frees the seat immediately (R2 lazy expiry)
+        // 3. Verify the expired hold frees the seat immediately (lazy expiry)
         using (var classDoc = await GetClassAsync(classId))
         {
             Assert.Equal(0, classDoc.RootElement.GetProperty("heldSeats").GetInt32());
@@ -274,7 +273,7 @@ public sealed class AdmissionSystemIntegrationTests : IAsyncLifetime
             Assert.Equal("EXPIRED", doc.RootElement.GetProperty("status").GetString());
         }
 
-        // 5. Attempt to confirm the expired hold -> must be rejected with 409 Conflict (R4)
+        // 5. Attempt to confirm the expired hold -> must be rejected with 409 Conflict
         using (var confirmResponse = await ConfirmAsync(expiredHoldId, student1))
         {
             Assert.Equal(HttpStatusCode.Conflict, confirmResponse.StatusCode);
@@ -284,7 +283,7 @@ public sealed class AdmissionSystemIntegrationTests : IAsyncLifetime
             Assert.False(doc.RootElement.TryGetProperty("stackTrace", out _));
         }
 
-        // 6. Another student can now claim the freed seat successfully (R2)
+        // 6. Another student can now claim the freed seat successfully
         var student2 = NewStudentId();
         using (var student2Apply = await ApplyAsync(classId, student2))
         {
@@ -302,7 +301,7 @@ public sealed class AdmissionSystemIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Spec Test 5 (Rule R4):
+    /// Spec Test 5:
     /// Ownership: Verify that a student cannot confirm or cancel another student's hold
     /// (returns 403 Forbidden).
     /// </summary>

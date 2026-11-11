@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ApiError, toFriendlyMessage } from "./errors";
 
-describe("toFriendlyMessage (Rule U5)", () => {
+describe("toFriendlyMessage", () => {
   it("maps NO_SEATS error code to friendly message", () => {
     const error = new ApiError(409, "NO_SEATS", "Class is full");
     expect(toFriendlyMessage(error)).toBe("No seats are available in this class.");

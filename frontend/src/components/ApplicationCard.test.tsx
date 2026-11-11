@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { ApplicationCard } from "./ApplicationCard";
 import type { HoldSummary } from "../api/types";
 
-describe("ApplicationCard (Rule U2)", () => {
+describe("ApplicationCard", () => {
   const activeHold: HoldSummary = {
     holdId: "hold-active-123",
     classId: "class-456",
@@ -39,7 +39,7 @@ describe("ApplicationCard (Rule U2)", () => {
     expect(onConfirm).toHaveBeenCalledWith("hold-active-123");
   });
 
-  it("shows EXPIRED and disables Pay Admission Fee when hold has expired (Rule U2)", () => {
+  it("shows EXPIRED and disables Pay Admission Fee when hold has expired", () => {
     const expiredHold: HoldSummary = {
       ...activeHold,
       expiresAt: new Date(Date.now() - 5_000).toISOString(), // 5 seconds in the past
