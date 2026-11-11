@@ -35,14 +35,11 @@ The frontend application provides a role switcher in the top navigation bar:
 - **Cancel:** Click **"Cancel"** to release the hold early and immediately free the seat for other applicants.
 
 ### 2. Admin Mode
-- **Access:** Click the **"Admin"** pill in the top header.
-- **Sign In Credentials:**
-  - **Email:** `admin@school.test`
-  - **Password:** `Adm1n!Demo`
+- **Access:** Click the **"Admin"** pill in the top header. Switches immediately to Admin mode without requiring credentials.
 - **Class Creation:** Fill in the class name and seat capacity to create new admission classes (**Rule U1**). The newly created class immediately appears in the class list.
-- **Sign Out:** Click **"Sign Out"** at any time to return to the Guardian view.
+- **Switch Back:** Click **"Guardian"** at any time to return to the Guardian view.
 
-> **Note on Roles:** Role switching and the admin gate are implemented on the frontend for demonstration purposes. The backend API remains open without authentication so automated grading suites and API test harnesses can run seamlessly.
+> **Note on Roles:** Role switching is a lightweight UI-level toggle for demonstration purposes. The backend API remains open without authentication so automated grading suites and API test harnesses can run seamlessly.
 
 ---
 

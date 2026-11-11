@@ -1,7 +1,6 @@
 export const STORAGE_KEYS = {
   studentId: "school-admission.studentId",
   role: "school-admission.role",
-  adminSignedIn: "school-admission.adminSignedIn",
 } as const;
 
 export function readStorage(key: string): string | null {

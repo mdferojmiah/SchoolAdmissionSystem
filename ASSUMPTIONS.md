@@ -28,10 +28,10 @@ This document outlines key technical assumptions, architectural choices, and des
 
 ---
 
-## 3. UI-Only Roles and Demo Admin Gate
+## 3. UI-Only Roles and Direct Switcher
 
-- **Cosmetic Front-End Gate:** The Guardian vs. Admin switcher and the Admin sign-in modal are implemented strictly in the frontend user interface.
-- **Build-Time Environment Variables:** `VITE_ADMIN_EMAIL` and `VITE_ADMIN_PASSWORD` are baked into the client JavaScript bundle during the Docker build. They are publicly inspectable by anyone with browser developer tools and are not intended as secure credentials.
+- **Zero-Credential Front-End Toggle:** The Guardian vs. Admin switcher is implemented strictly in the frontend user interface as a direct mode toggle without login credentials or password prompts.
+- **Role Persistence:** The user's active role is preserved across reloads in `localStorage` under `school-admission.role`.
 - **Intentionally Open Backend API:** The backend API has no authentication middleware or role-based access control. All endpoints (`POST /classes`, `POST /classes/{classId}/holds`, `POST /holds/{holdId}/confirm`, etc.) are open.
 - **Rationale:** The specification mandates automated API integration testing (including concurrency tests) without requiring prior authentication or bearer token management. Enforcing backend authorization would break automated grading harnesses and compose test suites.
 

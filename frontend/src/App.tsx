@@ -1,4 +1,3 @@
-import { AdminSignIn } from "./components/AdminSignIn";
 import { MyApplications } from "./components/MyApplications";
 import { RoleSwitcher } from "./components/RoleSwitcher";
 import { StudentIdBar } from "./components/StudentIdBar";
@@ -20,7 +19,7 @@ export default function App() {
 }
 
 function AppShell() {
-  const { role, isAdmin } = useRole();
+  const { role } = useRole();
   const isGuardian = role === "guardian";
 
   return (
@@ -33,9 +32,7 @@ function AppShell() {
       {isGuardian && <StudentIdBar />}
 
       <main>
-        {role === "admin" && !isAdmin && <AdminSignIn />}
-
-        {(isGuardian || isAdmin) && <ClassesPage />}
+        <ClassesPage />
 
         {isGuardian && <MyApplications />}
       </main>

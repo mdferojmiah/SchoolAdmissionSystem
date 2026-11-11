@@ -77,7 +77,6 @@ input:focus-visible {
 }
 
 .student-id-bar,
-.admin-sign-in,
 .panel {
   padding: 1rem 1.25rem;
   border: 1px solid #e2e8f0;
@@ -85,16 +84,14 @@ input:focus-visible {
   background: #ffffff;
 }
 
-.student-id-bar form,
-.admin-sign-in form {
+.student-id-bar form {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   max-width: 26rem;
 }
 
-.student-id-bar label,
-.admin-sign-in label {
+.student-id-bar label {
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -108,12 +105,6 @@ input:focus-visible {
 .student-id-fields input {
   flex: 1 1 14rem;
   min-width: 0;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
-}
-
-.admin-sign-in input {
   padding: 0.55rem 0.7rem;
   border: 1px solid #cbd5e1;
   border-radius: 0.5rem;
@@ -143,8 +134,7 @@ input:focus-visible {
   color: #991b1b;
 }
 
-.panel h2,
-.admin-sign-in h2 {
+.panel h2 {
   margin-top: 0;
 }
 

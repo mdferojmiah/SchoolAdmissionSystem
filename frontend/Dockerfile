@@ -2,12 +2,8 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 ARG VITE_API_URL=http://localhost:8080
-ARG VITE_ADMIN_EMAIL=admin@school.test
-ARG VITE_ADMIN_PASSWORD=Adm1n!Demo
 
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_ADMIN_EMAIL=$VITE_ADMIN_EMAIL
-ENV VITE_ADMIN_PASSWORD=$VITE_ADMIN_PASSWORD
 
 COPY package.json package-lock.json ./
 RUN npm ci
