@@ -277,3 +277,182 @@ input:focus-visible {
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* My Applications and Application Cards */
+.my-applications {
+  margin-top: 1.25rem;
+}
+
+.applications-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.application-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.6rem;
+  background: #fdfdfe;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.card-class-name {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.card-ids {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.card-ids code {
+  font-family: monospace;
+  background: #f1f5f9;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.25rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-held {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.status-confirmed {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.status-expired {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.status-cancelled {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.card-body {
+  margin: 0.5rem 0 1rem;
+}
+
+.countdown-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  background: #fffbeb;
+  border: 1px dashed #fcd34d;
+}
+
+.countdown-label {
+  font-size: 0.75rem;
+  color: #78350f;
+  margin-bottom: 0.2rem;
+}
+
+.countdown-timer {
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: #b45309;
+}
+
+.status-explanation {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.status-expired-text {
+  color: #b91c1c;
+}
+
+.status-confirmed-text {
+  color: #15803d;
+  font-weight: 500;
+}
+
+.status-cancelled-text {
+  color: #64748b;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.card-actions button {
+  flex: 1;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 0.4rem;
+}
+
+.card-actions .btn-pay {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+
+.card-actions .btn-pay:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.card-actions .btn-cancel {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.card-actions .btn-cancel:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.card-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+

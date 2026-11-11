@@ -31,9 +31,9 @@ export function ClassesPage() {
     try {
       const hold = await api.applyToClass(classId, studentId);
       setNotice(
-        `Seat held. Your application is active until ${new Date(
+        `Seat held! Active until ${new Date(
           hold.expiresAt,
-        ).toLocaleString()}.`,
+        ).toLocaleTimeString()}. See "My Applications" below to pay or cancel.`,
       );
       await refresh();
     } catch (caught) {

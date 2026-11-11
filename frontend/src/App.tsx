@@ -1,4 +1,5 @@
 import { AdminSignIn } from "./components/AdminSignIn";
+import { MyApplications } from "./components/MyApplications";
 import { RoleSwitcher } from "./components/RoleSwitcher";
 import { StudentIdBar } from "./components/StudentIdBar";
 import { ErrorBannerProvider } from "./context/ErrorBannerContext";
@@ -35,6 +36,8 @@ function AppShell() {
         {role === "admin" && !isAdmin && <AdminSignIn />}
 
         {(isGuardian || isAdmin) && <ClassesPage />}
+
+        {isGuardian && <MyApplications />}
       </main>
     </div>
   );
