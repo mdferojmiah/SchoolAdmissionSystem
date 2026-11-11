@@ -10,7 +10,6 @@ describe("ApplicationCard (Rule U2)", () => {
     className: "Grade 5 - Section A",
     status: "HELD",
     expiresAt: new Date(Date.now() + 600_000).toISOString(),
-    createdAt: new Date().toISOString(),
   };
 
   it("renders active hold with time remaining and enabled action buttons", () => {
@@ -86,7 +85,6 @@ describe("ApplicationCard (Rule U2)", () => {
     const confirmedHold: HoldSummary = {
       ...activeHold,
       status: "CONFIRMED",
-      confirmedAt: new Date().toISOString(),
     };
 
     render(
