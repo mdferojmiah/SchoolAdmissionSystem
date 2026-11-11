@@ -55,7 +55,7 @@ export function StudentIdBar() {
   return (
     <section className="student-id-bar" aria-label="Student identity">
       <form onSubmit={handleSubmit} noValidate>
-        <label htmlFor="student-id">Student ID (17 digits)</label>
+        <label htmlFor="student-id">Birth Registration Number (17 digits)</label>
         <div className="student-id-fields">
           <input
             id="student-id"
